@@ -9,6 +9,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var signatureType = jwt.SigningMethodHS512
+
 type Config struct {
 	TokenSecret     string        `env:"TOKEN_SECRET"`
 	AccessTokenTTL  time.Duration `env:"ACCESS_TOKEN_TTL"`
@@ -66,7 +68,7 @@ func (a *AuthService) HashRefreshToken(token string) ([]byte, error) {
 }
 
 func (a *AuthService) generateJWT(guid string, ttl int64) *jwt.Token {
-	return jwt.NewWithClaims(jwt.SigningMethodHS512,
+	return jwt.NewWithClaims(signatureType,
 		jwt.MapClaims{
 			"GUID": guid,
 			"exp":  ttl,
