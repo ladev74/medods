@@ -6,42 +6,35 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 
 	"medods/internal/api"
 	"medods/internal/auth"
 )
 
-func AuthMiddleware(logger *zap.Logger, cfg *auth.Config) func(http.Handler) http.Handler {
+const bearerPrefix = "Bearer "
+
+func AuthMiddleware(authService auth.AuthService, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
-			if header == "" {
-				api.WriteErrorResponse(w, logger, "No authorization header found", http.StatusUnauthorized)
-				logger.Error("AuthMiddleware: no authorization header found")
-				return
-			}
-
-			const bearerPrefix = "Bearer "
-
-			if !strings.HasPrefix(header, bearerPrefix) {
-				api.WriteErrorResponse(w, logger, "Invalid authorization header format", http.StatusUnauthorized)
-				return
-			}
-
-			tokenString := strings.TrimPrefix(header, bearerPrefix)
-
-			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-				if token.Method != auth.SignatureType {
-					return nil, fmt.Errorf("AuthMiddleware: unexpected signing method: %v", token.Header["alg"])
-				}
-
-				return []byte(cfg.TokenSecret), nil
-			})
+			header, err := getAuthorizationHeader(r)
 			if err != nil {
-				logger.Error("AuthMiddleware: invalid authorization header format", zap.Error(err))
+				api.WriteErrorResponse(w, logger, "No authorization header found", http.StatusUnauthorized)
+				logger.Error("AuthMiddleware:", zap.Error(err))
+				return
+			}
+
+			tokenString, err := extractToken(header)
+			if err != nil {
 				api.WriteErrorResponse(w, logger, "Invalid authorization header format", http.StatusUnauthorized)
+				logger.Error("AuthMiddleware: ", zap.Error(err))
+				return
+			}
+
+			token, err := authService.ParseToken(tokenString)
+			if err != nil {
+				api.WriteErrorResponse(w, logger, "Invalid token", http.StatusUnauthorized)
+				logger.Error("AuthMiddleware:", zap.Error(err))
 				return
 			}
 
@@ -59,4 +52,23 @@ func AuthMiddleware(logger *zap.Logger, cfg *auth.Config) func(http.Handler) htt
 
 		return http.HandlerFunc(fn)
 	}
+}
+
+func getAuthorizationHeader(r *http.Request) (string, error) {
+	header := r.Header.Get("Authorization")
+	if header == "" {
+		return "", fmt.Errorf("getAuthorizationHeader: no authorization header found")
+	}
+
+	return header, nil
+}
+
+func extractToken(header string) (string, error) {
+	if !strings.HasPrefix(header, bearerPrefix) {
+		return "", fmt.Errorf("extractToken: invalid authorization header format")
+	}
+
+	tokenString := strings.TrimPrefix(header, bearerPrefix)
+
+	return tokenString, nil
 }

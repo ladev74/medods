@@ -57,6 +57,38 @@ func (a *Auth) HashRefreshToken(token string) ([]byte, error) {
 	return hash, nil
 }
 
+func (a *Auth) ParseToken(tokenString string) (*jwt.Token, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if token.Method.Alg() != SignatureType.Alg() {
+			return nil, fmt.Errorf("ParseToken: unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(a.config.TokenSecret), nil
+	})
+	if err != nil {
+		a.logger.Error("ParseToken: invalid authorization header format", zap.Error(err))
+		return nil, fmt.Errorf("ParseToken: invalid authorization header format: %w", err)
+	}
+
+	return token, nil
+}
+
+func (a *Auth) ExtractGUID(token *jwt.Token) (string, error) {
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		a.logger.Error("ExtractGUID: invalid token claims")
+		return "", fmt.Errorf("ExtractGUID: invalid token claims")
+	}
+
+	guid, ok := claims["GUID"].(string)
+	if !ok || guid == "" {
+		a.logger.Error("ExtractGUID: GUID not found in token")
+		return "", fmt.Errorf("ExtractGUID: GUID not found in token")
+	}
+
+	return guid, nil
+}
+
 func (a *Auth) generateJWT(guid string, ttl int64) *jwt.Token {
 	return jwt.NewWithClaims(SignatureType,
 		jwt.MapClaims{

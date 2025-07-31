@@ -65,7 +65,7 @@ func main() {
 
 	router.Post("/auth/tokens", handlers.GetTokensHandler(authService, postgresClient, logger))
 
-	router.With(mmiddleware.AuthMiddleware(logger, &config.Auth)).Post("/auth/guid", handlers.GetGUIDHandler(logger))
+	router.With(mmiddleware.AuthMiddleware(authService, logger)).Post("/auth/guid", handlers.GetGUIDHandler(authService, logger))
 
 	server := http.Server{
 		Addr:    fmt.Sprintf("%s:%d", config.HttpServer.Host, config.HttpServer.Port),
