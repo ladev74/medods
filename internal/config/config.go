@@ -8,11 +8,13 @@ import (
 	"medods/internal/api"
 	"medods/internal/auth"
 	"medods/internal/logger"
+	"medods/internal/storage/postgresClient"
 )
 
 type Config struct {
 	HttpServer api.HttpServer
 	Auth       auth.Config
+	Postgres   postgresClient.Config
 	Logger     logger.Config
 }
 

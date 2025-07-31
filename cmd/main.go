@@ -19,11 +19,13 @@ import (
 	aauth "medods/internal/auth"
 	cconfig "medods/internal/config"
 	llogger "medods/internal/logger"
+	ppostgresClient "medods/internal/storage/postgresClient"
 )
 
 const (
-	pathToConfigFile = "./config/config.env"
-	shoutdownTime    = 15 * time.Second
+	pathToConfigFile     = "./config/config.env"
+	pathToMigrationsFile = "file://./database/migrations"
+	shoutdownTime        = 15 * time.Second
 )
 
 func main() {
@@ -45,6 +47,11 @@ func main() {
 	}
 	defer logger.Sync()
 
+	postgresClient, err := ppostgresClient.New(ctx, &config.Postgres, logger, pathToMigrationsFile)
+	if err != nil {
+		logger.Fatal("failed to initialize postgres client", zap.Error(err))
+	}
+
 	authService := aauth.New(&config.Auth, logger)
 
 	router := chi.NewRouter()
@@ -55,7 +62,7 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/auth/tokens", handlers.GetTokensHandler(authService, logger))
+	router.Post("/auth/tokens", handlers.GetTokensHandler(authService, postgresClient, logger))
 
 	server := http.Server{
 		Addr:    fmt.Sprintf("%s:%s", config.HttpServer.Host, config.HttpServer.Port),
@@ -90,3 +97,4 @@ func main() {
 
 // TODO: documentation
 // TODO: tests
+// TODO: rename project
