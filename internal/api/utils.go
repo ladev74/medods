@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"encoding/json"
@@ -17,7 +17,7 @@ type errorResponse struct {
 	ErrMessage string `json:"error"`
 }
 
-func writeErrorResponse(w http.ResponseWriter, logger *zap.Logger, errMessage string, statusCode int) {
+func WriteErrorResponse(w http.ResponseWriter, logger *zap.Logger, errMessage string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
@@ -33,7 +33,7 @@ func writeErrorResponse(w http.ResponseWriter, logger *zap.Logger, errMessage st
 	}
 }
 
-func writeSuccessResponse(w http.ResponseWriter, logger *zap.Logger, accessToken string, refreshToken string) {
+func WriteSuccessResponse(w http.ResponseWriter, logger *zap.Logger, accessToken string, refreshToken string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
@@ -43,6 +43,20 @@ func writeSuccessResponse(w http.ResponseWriter, logger *zap.Logger, accessToken
 	}
 
 	err := json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		logger.Error("writeSuccessResponse: failed to encoding response", zap.Error(err))
+	}
+}
+
+func WriteSuccessResponseWithGUID(w http.ResponseWriter, logger *zap.Logger, guid string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err := json.NewEncoder(w).Encode(struct {
+		GUID string `json:"guid"`
+	}{
+		GUID: guid,
+	})
 	if err != nil {
 		logger.Error("writeSuccessResponse: failed to encoding response", zap.Error(err))
 	}

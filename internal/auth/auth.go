@@ -58,7 +58,7 @@ func (a *Auth) HashRefreshToken(token string) ([]byte, error) {
 }
 
 func (a *Auth) generateJWT(guid string, ttl int64) *jwt.Token {
-	return jwt.NewWithClaims(signatureType,
+	return jwt.NewWithClaims(SignatureType,
 		jwt.MapClaims{
 			"GUID": guid,
 			"exp":  ttl,

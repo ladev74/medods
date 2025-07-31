@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"medods/internal/api/handlers"
+	mmiddleware "medods/internal/api/middleware"
 	aauth "medods/internal/auth"
 	cconfig "medods/internal/config"
 	llogger "medods/internal/logger"
@@ -64,8 +65,10 @@ func main() {
 
 	router.Post("/auth/tokens", handlers.GetTokensHandler(authService, postgresClient, logger))
 
+	router.With(mmiddleware.AuthMiddleware(logger, &config.Auth)).Post("/auth/guid", handlers.GetGUIDHandler(logger))
+
 	server := http.Server{
-		Addr:    fmt.Sprintf("%s:%s", config.HttpServer.Host, config.HttpServer.Port),
+		Addr:    fmt.Sprintf("%s:%d", config.HttpServer.Host, config.HttpServer.Port),
 		Handler: router,
 	}
 
@@ -88,7 +91,7 @@ func main() {
 		return
 	}
 
-	//postgresClient.Close()
+	postgresClient.Close()
 
 	logger.Info("stopping http server", zap.String("addr", server.Addr))
 
@@ -98,3 +101,4 @@ func main() {
 // TODO: documentation
 // TODO: tests
 // TODO: rename project
+// TODO: relocate logging middleware

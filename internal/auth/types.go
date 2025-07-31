@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var signatureType = jwt.SigningMethodHS512
+var SignatureType = jwt.SigningMethodHS512
 
 type Config struct {
 	TokenSecret     string        `env:"TOKEN_SECRET"`
