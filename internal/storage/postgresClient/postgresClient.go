@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/golang-migrate/migrate"
 	_ "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -44,18 +46,71 @@ func (ps *PostgresService) StoreRefreshTokenHash(ctx context.Context, guid strin
 	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
 	defer cancel()
 
-	tag, err := ps.pool.Exec(ctx, queryForStoreHash, guid, hash)
+	tag, err := ps.pool.Exec(ctx, queryStoreRefreshTokenHash, guid, hash)
 	if err != nil {
-		ps.logger.Error("StoreHash: failed to store hash", zap.Error(err))
-		return fmt.Errorf("StoreHash: failed to store hash: %w", err)
+		ps.logger.Error("StoreRefreshTokenHash: failed to store hash", zap.Error(err))
+		return fmt.Errorf("StoreRefreshTokenHash: failed to store hash: %w", err)
 	}
 
 	if tag.RowsAffected() == 0 {
-		ps.logger.Error("StoreHash: no rows affected")
-		return errors.New("StoreHash: no rows affected")
+		ps.logger.Error("StoreRefreshTokenHash: no rows affected")
+		return fmt.Errorf("StoreRefreshTokenHash: no rows affected")
 	}
 
+	ps.logger.Info("StoreRefreshTokenHash: hash stored successfully")
 	return nil
+}
+
+func (ps *PostgresService) DeleteRefreshTokenHash(ctx context.Context, guid string) error {
+	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
+	defer cancel()
+
+	_, err := ps.pool.Exec(ctx, queryDeleteRefreshTokenHash, guid)
+	if err != nil {
+		ps.logger.Error("DeleteRefreshTokenHash: failed to delete hash", zap.Error(err))
+		return fmt.Errorf("DeleteRefreshTokenHash: failed to delete hash: %w", err)
+	}
+
+	ps.logger.Info("DeleteRefreshTokenHash: hash deleted successfully")
+	return nil
+}
+
+func (ps *PostgresService) StoreTokenToBlacklist(ctx context.Context, jti string, exp *time.Time) error {
+	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
+	defer cancel()
+
+	tag, err := ps.pool.Exec(ctx, queryStoreTokenToBlacklist, jti, exp)
+	if err != nil {
+		ps.logger.Error("StoreTokenToBlacklist: failed to store", zap.Error(err))
+		return fmt.Errorf("StoreTokenToBlacklist: failed to store: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		ps.logger.Error("StoreTokenToBlacklist: no rows affected")
+		return fmt.Errorf("StoreTokenToBlacklist: no rows affected")
+	}
+
+	ps.logger.Info("StoreTokenToBlacklist: jti and exp stored successfully")
+	return nil
+}
+
+func (ps *PostgresService) IsBlacklisted(ctx context.Context, jti string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
+	defer cancel()
+
+	var blJti string
+
+	err := ps.pool.QueryRow(ctx, queryIsBlacklisted, jti).Scan(&blJti)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+
+	if err != nil {
+		ps.logger.Error("IsBlacklisted: failed to get jti", zap.Error(err))
+		return false, fmt.Errorf("IsBlacklisted: failed to get jti: %w", err)
+	}
+
+	return blJti == jti, nil
 }
 
 func (ps *PostgresService) Close() {

@@ -10,42 +10,66 @@ import (
 
 	"medods/internal/api"
 	"medods/internal/auth"
+	"medods/internal/storage/postgresClient"
 )
 
 const bearerPrefix = "Bearer "
 
-func AuthMiddleware(authService auth.AuthService, logger *zap.Logger) func(http.Handler) http.Handler {
+func AuthMiddleware(as auth.AuthService, ps postgresClient.PostgresClient, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+
 			header, err := getAuthorizationHeader(r)
 			if err != nil {
-				api.WriteErrorResponse(w, logger, "No authorization header found", http.StatusUnauthorized)
+				api.WriteError(w, logger, "No authorization header found", http.StatusUnauthorized)
 				logger.Error("AuthMiddleware:", zap.Error(err))
 				return
 			}
 
 			tokenString, err := extractToken(header)
 			if err != nil {
-				api.WriteErrorResponse(w, logger, "Invalid authorization header format", http.StatusUnauthorized)
-				logger.Error("AuthMiddleware: ", zap.Error(err))
+				api.WriteError(w, logger, "Invalid authorization header format", http.StatusUnauthorized)
+				logger.Error("AuthMiddleware:", zap.Error(err))
 				return
 			}
 
-			token, err := authService.ParseToken(tokenString)
+			token, err := as.ParseToken(tokenString)
 			if err != nil {
-				api.WriteErrorResponse(w, logger, "Invalid token", http.StatusUnauthorized)
+				api.WriteError(w, logger, "Invalid token", http.StatusUnauthorized)
 				logger.Error("AuthMiddleware:", zap.Error(err))
 				return
 			}
 
 			if !token.Valid {
-				api.WriteErrorResponse(w, logger, "No valid token", http.StatusUnauthorized)
+				api.WriteError(w, logger, "No valid token", http.StatusUnauthorized)
 				logger.Error("AuthMiddleware: no valid token")
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), "token", token)
+			jti, err := as.ExtractJTI(token)
+			if err != nil {
+				api.WriteError(w, logger, "Invalid token", http.StatusUnauthorized)
+				logger.Error("AuthMiddleware: failed to extract JTI", zap.Error(err))
+				return
+			}
+
+			isBlacklisted, err := ps.IsBlacklisted(ctx, jti)
+			if err != nil {
+				api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				logger.Error("AuthMiddleware: failed to check whether blacklisted", zap.Error(err))
+			}
+
+			if isBlacklisted {
+				api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				logger.Info("AuthMiddleware: token was blacklisted", zap.String("jti", jti))
+				return
+			}
+
+			ctx = context.WithValue(ctx, auth.ContextKeyToken, token)
 			r = r.WithContext(ctx)
+
+			logger.Info("AuthMiddleware: authorization was successfully")
 
 			next.ServeHTTP(w, r)
 		}

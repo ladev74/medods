@@ -7,7 +7,17 @@ import (
 	"go.uber.org/zap"
 )
 
-var SignatureType = jwt.SigningMethodHS512
+type contextKey string
+
+const ContextKeyToken = contextKey("jwtToken")
+
+const (
+	claimsSub = "sub"
+	claimsJTI = "jti"
+	claimsExp = "exp"
+)
+
+var SigningMethod = jwt.SigningMethodHS512
 
 type Config struct {
 	TokenSecret     string        `env:"TOKEN_SECRET"`
@@ -26,4 +36,6 @@ type AuthService interface {
 	HashRefreshToken(token string) ([]byte, error)
 	ParseToken(tokenString string) (*jwt.Token, error)
 	ExtractGUID(token *jwt.Token) (string, error)
+	ExtractJTI(token *jwt.Token) (string, error)
+	ExtractExpiration(token *jwt.Token) (*time.Time, error)
 }

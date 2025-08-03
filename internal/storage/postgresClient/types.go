@@ -29,7 +29,10 @@ type PostgresService struct {
 }
 
 type PostgresClient interface {
-	StoreRefreshTokenHash(context.Context, string, []byte) error
+	StoreRefreshTokenHash(ctx context.Context, guid string, hash []byte) error
+	DeleteRefreshTokenHash(ctx context.Context, guid string) error
+	StoreTokenToBlacklist(ctx context.Context, jti string, exp *time.Time) error
+	IsBlacklisted(ctx context.Context, jti string) (bool, error)
 	Close()
 }
 

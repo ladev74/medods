@@ -63,9 +63,14 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/auth/tokens", handlers.GetTokensHandler(authService, postgresClient, logger))
+	router.Route("/auth", func(r chi.Router) {
+		r.With(mmiddleware.AuthMiddleware(authService, postgresClient, logger)).Group(func(r chi.Router) {
+			r.Post("/guid", handlers.GetGUIDHandler(authService, logger))
+			r.Post("/logout", handlers.LogoutHandler(authService, postgresClient, logger))
+		})
 
-	router.With(mmiddleware.AuthMiddleware(authService, logger)).Post("/auth/guid", handlers.GetGUIDHandler(authService, logger))
+		r.Post("/tokens", handlers.CreateTokensHandler(authService, postgresClient, logger))
+	})
 
 	server := http.Server{
 		Addr:    fmt.Sprintf("%s:%d", config.HttpServer.Host, config.HttpServer.Port),
@@ -101,4 +106,4 @@ func main() {
 // TODO: documentation
 // TODO: tests
 // TODO: rename project
-// TODO: relocate logging middleware
+// TODO: refactoring middleware?

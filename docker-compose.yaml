@@ -20,7 +20,7 @@ services:
 
   postgres:
     image: postgres:17.5
-    container_name: postgresClient
+    container_name: postgres
     env_file:
       - config/config.env
     ports:

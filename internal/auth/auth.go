@@ -2,10 +2,12 @@ package auth
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -42,7 +44,8 @@ func (a *Auth) GenerateRefreshToken(guid string) (string, error) {
 		return "", fmt.Errorf("GenerateRefreshToken: failed to sign refresh token: %w", err)
 	}
 
-	return signedToken, nil
+	res := base64.StdEncoding.EncodeToString([]byte(signedToken))
+	return res, nil
 }
 
 func (a *Auth) HashRefreshToken(token string) ([]byte, error) {
@@ -59,7 +62,8 @@ func (a *Auth) HashRefreshToken(token string) ([]byte, error) {
 
 func (a *Auth) ParseToken(tokenString string) (*jwt.Token, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if token.Method.Alg() != SignatureType.Alg() {
+		if token.Method.Alg() != SigningMethod.Alg() {
+			a.logger.Error("ParseToken: unexpected signing method", zap.Any("alg", token.Header["alg"]))
 			return nil, fmt.Errorf("ParseToken: unexpected signing method: %v", token.Header["alg"])
 		}
 
@@ -80,7 +84,7 @@ func (a *Auth) ExtractGUID(token *jwt.Token) (string, error) {
 		return "", fmt.Errorf("ExtractGUID: invalid token claims")
 	}
 
-	guid, ok := claims["GUID"].(string)
+	guid, ok := claims[claimsSub].(string)
 	if !ok || guid == "" {
 		a.logger.Error("ExtractGUID: GUID not found in token")
 		return "", fmt.Errorf("ExtractGUID: GUID not found in token")
@@ -89,10 +93,41 @@ func (a *Auth) ExtractGUID(token *jwt.Token) (string, error) {
 	return guid, nil
 }
 
+func (a *Auth) ExtractJTI(token *jwt.Token) (string, error) {
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		a.logger.Error("ExtractJTI: invalid token claims")
+		return "", fmt.Errorf("ExtractJTI: invalid token claims")
+	}
+
+	jti, ok := claims[claimsJTI].(string)
+	if !ok || jti == "" {
+		a.logger.Error("ExtractJTI: JTI not found in token")
+		return "", fmt.Errorf("ExtractJTI: JTI not found in token")
+	}
+
+	return jti, nil
+}
+
+func (a *Auth) ExtractExpiration(token *jwt.Token) (*time.Time, error) {
+	exp, err := token.Claims.GetExpirationTime()
+	if err != nil || exp == nil {
+		a.logger.Error("ExtractExpiration: expiration not found in token")
+		return nil, fmt.Errorf("ExtractExpiration: expiration not found in token")
+	}
+
+	return &exp.Time, nil
+}
+
 func (a *Auth) generateJWT(guid string, ttl int64) *jwt.Token {
-	return jwt.NewWithClaims(SignatureType,
+	jti := uuid.New().String()
+	token := jwt.NewWithClaims(SigningMethod,
 		jwt.MapClaims{
-			"GUID": guid,
-			"exp":  ttl,
-		})
+			claimsJTI: jti,
+			claimsSub: guid,
+			claimsExp: ttl,
+		},
+	)
+
+	return token
 }
