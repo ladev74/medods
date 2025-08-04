@@ -33,6 +33,7 @@ type PostgresClient interface {
 	DeleteRefreshTokenHash(ctx context.Context, guid string) error
 	StoreTokenToBlacklist(ctx context.Context, jti string, exp *time.Time) error
 	IsBlacklisted(ctx context.Context, jti string) (bool, error)
+	GetStoredRefreshHash(ctx context.Context, guid string) ([]byte, error)
 	Close()
 }
 

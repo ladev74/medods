@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -62,12 +61,11 @@ func (a *Auth) generateRefreshToken(guid string, jti string) (string, error) {
 		return "", fmt.Errorf("GenerateRefreshToken: failed to sign refresh token: %w", err)
 	}
 
-	res := base64.StdEncoding.EncodeToString([]byte(signedToken))
-	return res, nil
+	return signedToken, nil
 }
 
 func (a *Auth) HashRefreshToken(token string) ([]byte, error) {
-	shaHash := sha256.Sum256([]byte(token))
+	shaHash := a.GenerateShaHash(token)
 
 	hash, err := bcrypt.GenerateFromPassword(shaHash[:], bcrypt.DefaultCost)
 	if err != nil {
@@ -76,6 +74,11 @@ func (a *Auth) HashRefreshToken(token string) ([]byte, error) {
 	}
 
 	return hash, nil
+}
+
+func (a *Auth) GenerateShaHash(refreshToken string) [32]byte {
+	shaHash := sha256.Sum256([]byte(refreshToken))
+	return shaHash
 }
 
 func (a *Auth) ParseToken(tokenString string) (*jwt.Token, error) {

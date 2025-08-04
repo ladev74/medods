@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -25,41 +24,25 @@ func CreateTokensHandler(as auth.AuthService, ps postgresClient.PostgresClient, 
 		accessToken, refreshToken, err := as.GenerateTokenPair(guid)
 		if err != nil {
 			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			logger.Error("CreateTokensHandler: cannot generate access token", zap.Error(err))
+			logger.Error("CreateTokensHandler: cannot generate access and refresh tokens", zap.String("guid", guid), zap.Error(err))
 			return
 		}
 
 		hash, err := as.HashRefreshToken(refreshToken)
 		if err != nil {
 			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			logger.Error("CreateTokensHandler: cannot generate hash refresh token", zap.Error(err))
+			logger.Error("CreateTokensHandler: cannot generate hash refresh token", zap.String("guid", guid), zap.Error(err))
 			return
 		}
 
 		err = ps.StoreRefreshTokenHash(r.Context(), guid, hash)
 		if err != nil {
 			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			logger.Error("CreateTokensHandler: cannot store hash refresh token", zap.Error(err))
+			logger.Error("CreateTokensHandler: cannot store hash refresh token", zap.String("guid", guid), zap.Error(err))
 			return
 		}
 
-		writeWithTokens(w, logger, accessToken, refreshToken)
-		logger.Info("CreateTokensHandler: successfully created and stored tokens")
-	}
-}
-
-func writeWithTokens(w http.ResponseWriter, logger *zap.Logger, accessToken string, refreshToken string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	err := json.NewEncoder(w).Encode(struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	}{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	})
-	if err != nil {
-		logger.Error("writeWithTokens: failed to encoding response", zap.Error(err))
+		api.WriteWithTokens(w, logger, accessToken, refreshToken)
+		logger.Info("CreateTokensHandler: successfully created and stored tokens", zap.String("guid", guid))
 	}
 }

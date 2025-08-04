@@ -25,7 +25,7 @@ func GetGUIDHandler(as auth.AuthService, logger *zap.Logger) func(w http.Respons
 		}
 
 		writeWithGUID(w, logger, guid)
-		logger.Info("GetGUIDHandler: successfully returned GUID")
+		logger.Info("GetGUIDHandler: successfully returned GUID", zap.String("guid", guid))
 	}
 }
 

@@ -37,4 +37,5 @@ type AuthService interface {
 	ExtractGUID(token *jwt.Token) (string, error)
 	ExtractJTI(token *jwt.Token) (string, error)
 	ExtractExpiration(token *jwt.Token) (*time.Time, error)
+	GenerateShaHash(refreshToken string) [32]byte
 }

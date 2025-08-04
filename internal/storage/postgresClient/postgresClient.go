@@ -11,7 +11,6 @@ import (
 	_ "github.com/golang-migrate/migrate/source/file"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -98,19 +97,30 @@ func (ps *PostgresService) IsBlacklisted(ctx context.Context, jti string) (bool,
 	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
 	defer cancel()
 
-	var blJti string
+	var exists bool
 
-	err := ps.pool.QueryRow(ctx, queryIsBlacklisted, jti).Scan(&blJti)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
-	}
-
+	err := ps.pool.QueryRow(ctx, queryIsBlacklisted, jti).Scan(&exists)
 	if err != nil {
 		ps.logger.Error("IsBlacklisted: failed to get jti", zap.Error(err))
 		return false, fmt.Errorf("IsBlacklisted: failed to get jti: %w", err)
 	}
 
-	return blJti == jti, nil
+	return exists, nil
+}
+
+func (ps *PostgresService) GetStoredRefreshHash(ctx context.Context, guid string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
+	defer cancel()
+
+	var hash []byte
+
+	err := ps.pool.QueryRow(ctx, queryGetStoredRefreshHash, guid).Scan(&hash)
+	if err != nil {
+		ps.logger.Error("GetStoredRefreshHash: failed to get jti", zap.Error(err))
+		return nil, fmt.Errorf("GetStoredRefreshHash: failed to get hash: %w", err)
+	}
+
+	return hash, nil
 }
 
 func (ps *PostgresService) Close() {
