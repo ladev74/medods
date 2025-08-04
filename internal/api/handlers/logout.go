@@ -16,45 +16,40 @@ func LogoutHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		token, ok := r.Context().Value(auth.ContextKeyToken).(*jwt.Token)
-		if !ok {
-			api.WriteError(w, logger, "GUID not found in token", http.StatusUnauthorized)
-			logger.Error("LogoutHandler: GUID not found in token")
-			return
-		}
-
-		guid, err := as.ExtractGUID(token)
-		if err != nil {
-			api.WriteError(w, logger, "Cannot get GUID from token", http.StatusUnauthorized)
-			logger.Error("LogoutHandler: failed to extract GUID", zap.Error(err))
-			return
-		}
-
-		err = ps.DeleteRefreshTokenHash(ctx, guid)
-		if err != nil {
-			api.WriteError(w, logger, "Failed to logout", http.StatusInternalServerError)
-			logger.Error("LogoutHandler: failed to delete refresh token hash", zap.Error(err))
-			return
-		}
+		token := ctx.Value(auth.ContextKeyToken).(*jwt.Token)
 
 		jti, err := as.ExtractJTI(token)
 		if err != nil {
-			api.WriteError(w, logger, "Cannot get JTI from token", http.StatusUnauthorized)
+			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			logger.Error("LogoutHandler: failed to extract JTI", zap.Error(err))
 			return
 		}
 
 		exp, err := as.ExtractExpiration(token)
 		if err != nil {
-			api.WriteError(w, logger, "Cannot get expiration from token", http.StatusUnauthorized)
+			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			logger.Error("LogoutHandler: failed to extract expiration", zap.Error(err))
 			return
 		}
 
 		err = ps.StoreTokenToBlacklist(ctx, jti, exp)
 		if err != nil {
-			api.WriteError(w, logger, "Failed to logout", http.StatusInternalServerError)
+			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			logger.Error("LogoutHandler: failed to store token to blacklist", zap.Error(err))
+			return
+		}
+
+		guid, err := as.ExtractGUID(token)
+		if err != nil {
+			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			logger.Error("LogoutHandler: failed to extract GUID", zap.Error(err))
+			return
+		}
+
+		err = ps.DeleteRefreshTokenHash(ctx, guid)
+		if err != nil {
+			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Error("LogoutHandler: failed to delete refresh token hash", zap.Error(err))
 			return
 		}
 

@@ -57,9 +57,9 @@ func main() {
 
 	router := chi.NewRouter()
 
-	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
-	router.Use(llogger.MiddlewareLogger(logger, &llogger.Config{Env: "dev"}))
+	router.Use(middleware.RequestID)
+	router.Use(llogger.MiddlewareLogger(logger, &config.Logger))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
@@ -67,6 +67,7 @@ func main() {
 		r.With(mmiddleware.AuthMiddleware(authService, postgresClient, logger)).Group(func(r chi.Router) {
 			r.Post("/guid", handlers.GetGUIDHandler(authService, logger))
 			r.Post("/logout", handlers.LogoutHandler(authService, postgresClient, logger))
+			r.Post("/refresh", handlers.RefreshHandler(authService, logger))
 		})
 
 		r.Post("/tokens", handlers.CreateTokensHandler(authService, postgresClient, logger))

@@ -19,10 +19,28 @@ func New(config *Config, logger *zap.Logger) *Auth {
 	}
 }
 
-func (a *Auth) GenerateAccessToken(guid string) (string, error) {
+func (a *Auth) GenerateTokenPair(guid string) (string, string, error) {
+	jti := uuid.New().String()
+
+	accessToken, err := a.generateAccessToken(guid, jti)
+	if err != nil {
+		a.logger.Error("GenerateTokenPair: failed to generate access token", zap.Error(err))
+		return "", "", fmt.Errorf("GenerateTokenPair: failed to generate access token: %w", err)
+	}
+
+	refreshToken, err := a.generateRefreshToken(guid, jti)
+	if err != nil {
+		a.logger.Error("GenerateTokenPair: failed to generate refresh token", zap.Error(err))
+		return "", "", fmt.Errorf("GenerateTokenPair: failed to generate refresh token: %w", err)
+	}
+
+	return accessToken, refreshToken, nil
+}
+
+func (a *Auth) generateAccessToken(guid string, jti string) (string, error) {
 	ttl := time.Now().Add(a.config.AccessTokenTTL).Unix()
 
-	token := a.generateJWT(guid, ttl)
+	token := a.generateJWT(guid, ttl, jti)
 
 	signedToken, err := token.SignedString([]byte(a.config.TokenSecret))
 	if err != nil {
@@ -33,10 +51,10 @@ func (a *Auth) GenerateAccessToken(guid string) (string, error) {
 	return signedToken, nil
 }
 
-func (a *Auth) GenerateRefreshToken(guid string) (string, error) {
+func (a *Auth) generateRefreshToken(guid string, jti string) (string, error) {
 	ttl := time.Now().Add(a.config.RefreshTokenTTL).Unix()
 
-	token := a.generateJWT(guid, ttl)
+	token := a.generateJWT(guid, ttl, jti)
 
 	signedToken, err := token.SignedString([]byte(a.config.TokenSecret))
 	if err != nil {
@@ -119,8 +137,7 @@ func (a *Auth) ExtractExpiration(token *jwt.Token) (*time.Time, error) {
 	return &exp.Time, nil
 }
 
-func (a *Auth) generateJWT(guid string, ttl int64) *jwt.Token {
-	jti := uuid.New().String()
+func (a *Auth) generateJWT(guid string, ttl int64, jti string) *jwt.Token {
 	token := jwt.NewWithClaims(SigningMethod,
 		jwt.MapClaims{
 			claimsJTI: jti,

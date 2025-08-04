@@ -31,8 +31,7 @@ type Auth struct {
 }
 
 type AuthService interface {
-	GenerateAccessToken(guid string) (string, error)
-	GenerateRefreshToken(guid string) (string, error)
+	GenerateTokenPair(guid string) (string, string, error)
 	HashRefreshToken(token string) ([]byte, error)
 	ParseToken(tokenString string) (*jwt.Token, error)
 	ExtractGUID(token *jwt.Token) (string, error)

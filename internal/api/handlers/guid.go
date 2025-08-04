@@ -13,16 +13,13 @@ import (
 
 func GetGUIDHandler(as auth.AuthService, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token, ok := r.Context().Value(auth.ContextKeyToken).(*jwt.Token)
-		if !ok {
-			api.WriteError(w, logger, "GUID not found in token", http.StatusUnauthorized)
-			logger.Error("GetGUIDHandler: GUID not found in token")
-			return
-		}
+		ctx := r.Context()
+
+		token := ctx.Value(auth.ContextKeyToken).(*jwt.Token)
 
 		guid, err := as.ExtractGUID(token)
 		if err != nil {
-			api.WriteError(w, logger, "Cannot get GUID from token", http.StatusUnauthorized)
+			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			logger.Error("GetGUIDHandler: failed to extract GUID:", zap.Error(err))
 			return
 		}

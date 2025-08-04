@@ -37,7 +37,7 @@ func AuthMiddleware(as auth.AuthService, ps postgresClient.PostgresClient, logge
 			token, err := as.ParseToken(tokenString)
 			if err != nil {
 				api.WriteError(w, logger, "Invalid token", http.StatusUnauthorized)
-				logger.Error("AuthMiddleware:", zap.Error(err))
+				logger.Error("AuthMiddleware: invalid token", zap.Error(err))
 				return
 			}
 
@@ -58,6 +58,7 @@ func AuthMiddleware(as auth.AuthService, ps postgresClient.PostgresClient, logge
 			if err != nil {
 				api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				logger.Error("AuthMiddleware: failed to check whether blacklisted", zap.Error(err))
+				return
 			}
 
 			if isBlacklisted {

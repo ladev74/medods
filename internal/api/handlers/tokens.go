@@ -11,40 +11,35 @@ import (
 	"medods/internal/storage/postgresClient"
 )
 
+const guidKey = "guid"
+
 func CreateTokensHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		guid := r.URL.Query().Get("guid")
+		guid := r.URL.Query().Get(guidKey)
 		if guid == "" {
 			api.WriteError(w, logger, "guid must not be empty", http.StatusBadRequest)
 			logger.Error("CreateTokensHandler: empty guid in the query parameters")
 			return
 		}
 
-		accessToken, err := as.GenerateAccessToken(guid)
+		accessToken, refreshToken, err := as.GenerateTokenPair(guid)
 		if err != nil {
-			api.WriteError(w, logger, "cannot generate access token", http.StatusInternalServerError)
-			logger.Error("CreateTokensHandler:", zap.Error(err))
-			return
-		}
-
-		refreshToken, err := as.GenerateRefreshToken(guid)
-		if err != nil {
-			api.WriteError(w, logger, "cannot generate refresh token", http.StatusInternalServerError)
-			logger.Error("CreateTokensHandler:", zap.Error(err))
+			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Error("CreateTokensHandler: cannot generate access token", zap.Error(err))
 			return
 		}
 
 		hash, err := as.HashRefreshToken(refreshToken)
 		if err != nil {
-			api.WriteError(w, logger, "cannot hash refresh token", http.StatusInternalServerError)
-			logger.Error("CreateTokensHandler:", zap.Error(err))
+			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Error("CreateTokensHandler: cannot generate hash refresh token", zap.Error(err))
 			return
 		}
 
 		err = ps.StoreRefreshTokenHash(r.Context(), guid, hash)
 		if err != nil {
-			api.WriteError(w, logger, "cannot store hash", http.StatusInternalServerError)
-			logger.Error("CreateTokensHandler:", zap.Error(err))
+			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Error("CreateTokensHandler: cannot store hash refresh token", zap.Error(err))
 			return
 		}
 
