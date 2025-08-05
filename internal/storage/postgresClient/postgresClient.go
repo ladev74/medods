@@ -41,11 +41,11 @@ func New(ctx context.Context, config *Config, logger *zap.Logger, migrationsPath
 	}, nil
 }
 
-func (ps *PostgresService) StoreRefreshTokenHash(ctx context.Context, guid string, hash []byte) error {
+func (ps *PostgresService) StoreRefreshTokenHash(ctx context.Context, guid string, hash []byte, userAgent string, ip string) error {
 	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
 	defer cancel()
 
-	tag, err := ps.pool.Exec(ctx, queryStoreRefreshTokenHash, guid, hash)
+	tag, err := ps.pool.Exec(ctx, queryStoreRefreshTokenHash, guid, hash, userAgent, ip)
 	if err != nil {
 		ps.logger.Error("StoreRefreshTokenHash: failed to store hash", zap.Error(err))
 		return fmt.Errorf("StoreRefreshTokenHash: failed to store hash: %w", err)
@@ -108,19 +108,21 @@ func (ps *PostgresService) IsBlacklisted(ctx context.Context, jti string) (bool,
 	return exists, nil
 }
 
-func (ps *PostgresService) GetStoredRefreshHash(ctx context.Context, guid string) ([]byte, error) {
+func (ps *PostgresService) GetStoredRefreshTokenData(ctx context.Context, guid string) ([]byte, string, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, ps.timeout)
 	defer cancel()
 
 	var hash []byte
+	var userAgent string
+	var ip string
 
-	err := ps.pool.QueryRow(ctx, queryGetStoredRefreshHash, guid).Scan(&hash)
+	err := ps.pool.QueryRow(ctx, queryGetStoredRefreshTokenData, guid).Scan(&hash, &userAgent, &ip)
 	if err != nil {
 		ps.logger.Error("GetStoredRefreshHash: failed to get jti", zap.Error(err))
-		return nil, fmt.Errorf("GetStoredRefreshHash: failed to get hash: %w", err)
+		return nil, "", "", fmt.Errorf("GetStoredRefreshHash: failed to get hash: %w", err)
 	}
 
-	return hash, nil
+	return hash, userAgent, ip, nil
 }
 
 func (ps *PostgresService) Close() {

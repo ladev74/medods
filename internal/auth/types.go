@@ -34,8 +34,9 @@ type AuthService interface {
 	GenerateTokenPair(guid string) (string, string, error)
 	HashRefreshToken(token string) ([]byte, error)
 	ParseToken(tokenString string) (*jwt.Token, error)
-	ExtractGUID(token *jwt.Token) (string, error)
 	ExtractJTI(token *jwt.Token) (string, error)
+	ExtractGUID(token *jwt.Token) (string, error)
 	ExtractExpiration(token *jwt.Token) (*time.Time, error)
+	ExtractAccessTokenMetadata(token *jwt.Token) (string, string, *time.Time, error)
 	GenerateShaHash(refreshToken string) [32]byte
 }

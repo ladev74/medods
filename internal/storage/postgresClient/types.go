@@ -29,11 +29,11 @@ type PostgresService struct {
 }
 
 type PostgresClient interface {
-	StoreRefreshTokenHash(ctx context.Context, guid string, hash []byte) error
+	StoreRefreshTokenHash(ctx context.Context, guid string, hash []byte, userAgent string, ip string) error
 	DeleteRefreshTokenHash(ctx context.Context, guid string) error
 	StoreTokenToBlacklist(ctx context.Context, jti string, exp *time.Time) error
 	IsBlacklisted(ctx context.Context, jti string) (bool, error)
-	GetStoredRefreshHash(ctx context.Context, guid string) ([]byte, error)
+	GetStoredRefreshTokenData(ctx context.Context, guid string) ([]byte, string, string, error)
 	Close()
 }
 

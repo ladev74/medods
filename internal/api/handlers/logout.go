@@ -18,24 +18,10 @@ func LogoutHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger
 
 		token := ctx.Value(auth.ContextKeyToken).(*jwt.Token)
 
-		guid, err := as.ExtractGUID(token)
+		jti, guid, exp, err := as.ExtractAccessTokenMetadata(token)
 		if err != nil {
-			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			logger.Error("LogoutHandler: failed to extract GUID", zap.Error(err))
-			return
-		}
-
-		jti, err := as.ExtractJTI(token)
-		if err != nil {
-			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			logger.Error("LogoutHandler: failed to extract JTI", zap.String("guid", guid), zap.Error(err))
-			return
-		}
-
-		exp, err := as.ExtractExpiration(token)
-		if err != nil {
-			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			logger.Error("LogoutHandler: failed to extract expiration", zap.String("guid", guid), zap.Error(err))
+			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Error("LogoutHandler: failed to extract access token metadata", zap.String("guid", guid), zap.Error(err))
 			return
 		}
 

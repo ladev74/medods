@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -13,26 +16,72 @@ import (
 	"medods/internal/storage/postgresClient"
 )
 
-// TODO: Требования к операции refresh!!!
-
-func RefreshHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
+func RefreshHandler(as auth.AuthService, ps postgresClient.PostgresClient, cfg *api.HttpServer, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		accessToken := ctx.Value(auth.ContextKeyToken).(*jwt.Token)
 
-		guid, err := as.ExtractGUID(accessToken)
+		jti, guid, exp, err := as.ExtractAccessTokenMetadata(accessToken)
 		if err != nil {
-			api.WriteError(w, logger, "cannot get GUID from token", http.StatusUnauthorized)
-			logger.Error("RefreshHandler: failed to extract GUID", zap.Error(err))
+			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Error("RefreshHandler: failed to extract access token metadata", zap.String("guid", guid), zap.Error(err))
 			return
 		}
 
-		storedHash, err := ps.GetStoredRefreshHash(ctx, guid)
+		storedHash, storedUserAgent, storedIp, err := ps.GetStoredRefreshTokenData(ctx, guid)
 		if err != nil {
 			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			logger.Error("RefreshHandler: failed to get hash", zap.Error(err))
 			return
+		}
+
+		currentUserAgent := r.UserAgent()
+
+		if currentUserAgent != storedUserAgent {
+			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			logger.Error(
+				"RefreshHandler: user agents not equal",
+				zap.String("guid", guid),
+				zap.String("currentUserAgent", currentUserAgent),
+				zap.String("storedUserAgent", storedUserAgent),
+			)
+
+			err = ps.StoreTokenToBlacklist(ctx, jti, exp)
+			if err != nil {
+				api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				logger.Error("RefreshHandler: failed to store token to blacklist", zap.String("guid", guid), zap.Error(err))
+				return
+			}
+
+			err = ps.DeleteRefreshTokenHash(ctx, guid)
+			if err != nil {
+				api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				logger.Error("RefreshHandler: failed to delete refresh token hash", zap.String("guid", guid), zap.Error(err))
+				return
+			}
+
+			logger.Info("RefreshHandler: successfully logout", zap.String("guid", guid))
+			return
+		}
+
+		currentIp := r.RemoteAddr
+
+		if currentIp != storedIp {
+			err = sendMessageWebhook(ctx, cfg.WebHookURL, storedIp, currentIp)
+			if err != nil {
+				logger.Warn(
+					"RefreshHandler: failed to send message webhook",
+					zap.String("guid", guid),
+					zap.String("currentIp", currentIp),
+					zap.String("storedIp", storedIp),
+					zap.Error(err),
+				)
+
+			} else {
+				logger.Info("RefreshHandler: successfully sent message webhook", zap.String("guid", guid))
+			}
+
 		}
 
 		refreshToken, err := decodeRefreshTokenFromRequest(r)
@@ -58,20 +107,6 @@ func RefreshHandler(as auth.AuthService, ps postgresClient.PostgresClient, logge
 			return
 		}
 
-		jti, err := as.ExtractJTI(accessToken)
-		if err != nil {
-			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			logger.Error("RefreshHandler: failed to extract JTI", zap.String("guid", guid), zap.Error(err))
-			return
-		}
-
-		exp, err := as.ExtractExpiration(accessToken)
-		if err != nil {
-			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			logger.Error("RefreshHandler: failed to extract expiration", zap.String("guid", guid), zap.Error(err))
-			return
-		}
-
 		err = ps.StoreTokenToBlacklist(ctx, jti, exp)
 		if err != nil {
 			api.WriteError(w, logger, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
@@ -93,7 +128,7 @@ func RefreshHandler(as auth.AuthService, ps postgresClient.PostgresClient, logge
 			return
 		}
 
-		err = ps.StoreRefreshTokenHash(r.Context(), guid, newHash)
+		err = ps.StoreRefreshTokenHash(ctx, guid, newHash, currentUserAgent, currentIp)
 		if err != nil {
 			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			logger.Error("RefreshHandler: cannot store hash refresh token", zap.String("guid", guid), zap.Error(err))
@@ -103,6 +138,31 @@ func RefreshHandler(as auth.AuthService, ps postgresClient.PostgresClient, logge
 		api.WriteWithTokens(w, logger, newAccessToken, newRefreshToken)
 		logger.Info("RefreshHandler: successfully refreshed tokens", zap.String("guid", guid))
 	}
+}
+
+func sendMessageWebhook(ctx context.Context, url string, storedIp string, currentIp string) error {
+	message := fmt.Sprintf("An attempt to update the token from a new IP: %s Received IP:%s", storedIp, currentIp)
+
+	jsonMessage, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("sendMessageWebhook: failed to marshal message: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonMessage))
+	if err != nil {
+		return fmt.Errorf("sendMessageWebhook: failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+
+	_, err = client.Do(req)
+	if err != nil {
+		return fmt.Errorf("sendMessageWebhook: failed to send message: %w", err)
+	}
+
+	return nil
 }
 
 func decodeRefreshTokenFromRequest(r *http.Request) (string, error) {

@@ -1,6 +1,7 @@
 package api
 
 type HttpServer struct {
-	Host string `env:"HTTP_HOST"`
-	Port int    `env:"HTTP_PORT"`
+	Host       string `env:"HTTP_HOST"`
+	Port       int    `env:"HTTP_PORT"`
+	WebHookURL string `env:"HTTP_WEBHOOK_URL"`
 }

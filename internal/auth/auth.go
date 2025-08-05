@@ -140,6 +140,30 @@ func (a *Auth) ExtractExpiration(token *jwt.Token) (*time.Time, error) {
 	return &exp.Time, nil
 }
 
+func (a *Auth) ExtractAccessTokenMetadata(token *jwt.Token) (string, string, *time.Time, error) {
+	errMsg := "ExtractAccessTokenMetadata: failed to extract access token metadata"
+
+	jti, err := a.ExtractJTI(token)
+	if err != nil {
+		a.logger.Error(errMsg, zap.Error(err))
+		return "", "", nil, fmt.Errorf("%s: %w", errMsg, err)
+	}
+
+	guid, err := a.ExtractGUID(token)
+	if err != nil {
+		a.logger.Error(errMsg, zap.Error(err))
+		return "", "", nil, fmt.Errorf("%s: %w", errMsg, err)
+	}
+
+	exp, err := a.ExtractExpiration(token)
+	if err != nil {
+		a.logger.Error(errMsg, zap.Error(err))
+		return "", "", nil, fmt.Errorf("%s: %w", errMsg, err)
+	}
+
+	return jti, guid, exp, nil
+}
+
 func (a *Auth) generateJWT(guid string, ttl int64, jti string) *jwt.Token {
 	token := jwt.NewWithClaims(SigningMethod,
 		jwt.MapClaims{

@@ -14,6 +14,8 @@ const guidKey = "guid"
 
 func CreateTokensHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
 		guid := r.URL.Query().Get(guidKey)
 		if guid == "" {
 			api.WriteError(w, logger, "guid must not be empty", http.StatusBadRequest)
@@ -35,7 +37,10 @@ func CreateTokensHandler(as auth.AuthService, ps postgresClient.PostgresClient, 
 			return
 		}
 
-		err = ps.StoreRefreshTokenHash(r.Context(), guid, hash)
+		userAgent := r.UserAgent()
+		ip := r.RemoteAddr
+
+		err = ps.StoreRefreshTokenHash(ctx, guid, hash, userAgent, ip)
 		if err != nil {
 			api.WriteError(w, logger, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			logger.Error("CreateTokensHandler: cannot store hash refresh token", zap.String("guid", guid), zap.Error(err))
