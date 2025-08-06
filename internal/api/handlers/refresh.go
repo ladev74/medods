@@ -16,6 +16,18 @@ import (
 	"medods/internal/storage/postgresClient"
 )
 
+// RefreshHandler обновляет пару access и refresh токенов.
+// @Summary Обновить токены
+// @Description Проводит валидацию и выдает новую пару токенов
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param RefreshTokenRequest body api.RefreshTokenRequest true "Refresh token запрос"
+// @Success 200 {object} api.RespWithTokens
+// @Failure 401 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /auth/refresh [post]
 func RefreshHandler(as auth.AuthService, ps postgresClient.PostgresClient, cfg *api.HttpServer, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

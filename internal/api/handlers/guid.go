@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -11,6 +10,16 @@ import (
 	"medods/internal/auth"
 )
 
+// GetGUIDHandler возвращает GUID пользователя, извлечённый из JWT токена.
+// @Summary Получить GUID пользователя
+// @Description Извлекает GUID из access token и возвращает его
+// @Tags User
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} api.GUIDResponse
+// @Failure 401 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /auth/guid [post]
 func GetGUIDHandler(as auth.AuthService, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -24,21 +33,7 @@ func GetGUIDHandler(as auth.AuthService, logger *zap.Logger) func(w http.Respons
 			return
 		}
 
-		writeWithGUID(w, logger, guid)
+		api.WriteWithGUID(w, logger, guid)
 		logger.Info("GetGUIDHandler: successfully returned GUID", zap.String("guid", guid))
-	}
-}
-
-func writeWithGUID(w http.ResponseWriter, logger *zap.Logger, guid string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	err := json.NewEncoder(w).Encode(struct {
-		GUID string `json:"guid"`
-	}{
-		GUID: guid,
-	})
-	if err != nil {
-		logger.Error("writeWithGUID: failed to encoding response", zap.Error(err))
 	}
 }

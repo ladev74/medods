@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -12,6 +11,16 @@ import (
 	"medods/internal/storage/postgresClient"
 )
 
+// LogoutHandler выполняет выход пользователя, занося текущий токен в черный список.
+// @Summary Выход пользователя
+// @Description Инвалидирует access и refresh токены
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} api.OKResponse
+// @Failure 401 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /auth/logout [post]
 func LogoutHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -39,21 +48,7 @@ func LogoutHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger
 			return
 		}
 
-		writeOK(w, logger)
+		api.WriteOK(w, logger)
 		logger.Info("LogoutHandler: successfully logged out", zap.String("guid", guid))
-	}
-}
-
-func writeOK(w http.ResponseWriter, logger *zap.Logger) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	err := json.NewEncoder(w).Encode(struct {
-		Status string
-	}{
-		Status: http.StatusText(http.StatusOK),
-	})
-	if err != nil {
-		logger.Error("writeOK: failed to encoding response", zap.Error(err))
 	}
 }

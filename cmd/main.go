@@ -1,3 +1,15 @@
+// @title Medods API
+// @version 1.0
+// @description Документация API Medods
+// @host localhost:8082
+// @BasePath /
+// @schemes http
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @scheme bearer
+// @bearerFormat JWT
 package main
 
 import (
@@ -13,7 +25,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
+
+	_ "medods/docs"
 
 	"medods/internal/api/handlers"
 	mmiddleware "medods/internal/api/middleware"
@@ -63,15 +78,18 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
+	router.With(mmiddleware.AuthMiddleware(authService, postgresClient, logger)).Post("/auth/guid", handlers.GetGUIDHandler(authService, logger))
+
 	router.Route("/auth", func(r chi.Router) {
 		r.With(mmiddleware.AuthMiddleware(authService, postgresClient, logger)).Group(func(r chi.Router) {
-			r.Post("/guid", handlers.GetGUIDHandler(authService, logger))
+			//r.Post("/guid", handlers.GetGUIDHandler(authService, logger))
 			r.Post("/logout", handlers.LogoutHandler(authService, postgresClient, logger))
 			r.Post("/refresh", handlers.RefreshHandler(authService, postgresClient, &config.HttpServer, logger))
 		})
 
 		r.Post("/tokens", handlers.CreateTokensHandler(authService, postgresClient, logger))
 	})
+	router.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	server := http.Server{
 		Addr:    fmt.Sprintf("%s:%d", config.HttpServer.Host, config.HttpServer.Port),

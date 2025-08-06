@@ -12,6 +12,16 @@ import (
 
 const guidKey = "guid"
 
+// CreateTokensHandler создает новую пару токенов для указанного GUID.
+// @Summary Создать токены
+// @Description Генерирует access и refresh токены по GUID пользователя
+// @Tags Auth
+// @Produce json
+// @Param guid query string true "GUID пользователя"
+// @Success 200 {object} api.RespWithTokens
+// @Failure 400 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /auth/tokens [post]
 func CreateTokensHandler(as auth.AuthService, ps postgresClient.PostgresClient, logger *zap.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
