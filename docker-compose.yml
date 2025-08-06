@@ -1,0 +1,32 @@
+networks:
+  auth:
+    driver: bridge
+
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: auth
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth
+
+  postgres:
+    image: postgres:17.5
+    container_name: postgres
+    env_file:
+      - config/config.env
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - auth
