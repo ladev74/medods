@@ -5,10 +5,10 @@ import (
 
 	"github.com/ilyakaznacheev/cleanenv"
 
-	"medods/internal/api"
-	"medods/internal/auth"
-	"medods/internal/logger"
-	"medods/internal/storage/postgresClient"
+	"authentication-service/internal/api"
+	"authentication-service/internal/auth"
+	"authentication-service/internal/logger"
+	"authentication-service/internal/storage/postgresClient"
 )
 
 type Config struct {

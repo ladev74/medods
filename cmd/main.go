@@ -1,6 +1,6 @@
-// @title Medods API
+// @title Authentication-Service API
 // @version 1.0
-// @description Документация API Medods
+// @description Документация API Authentication-Service
 // @host localhost:8082
 // @BasePath /
 // @schemes http
@@ -28,14 +28,14 @@ import (
 	"github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 
-	_ "medods/docs"
+	_ "authentication-service/docs"
 
-	"medods/internal/api/handlers"
-	mmiddleware "medods/internal/api/middleware"
-	aauth "medods/internal/auth"
-	cconfig "medods/internal/config"
-	llogger "medods/internal/logger"
-	ppostgresClient "medods/internal/storage/postgresClient"
+	"authentication-service/internal/api/handlers"
+	mmiddleware "authentication-service/internal/api/middleware"
+	aauth "authentication-service/internal/auth"
+	cconfig "authentication-service/internal/config"
+	llogger "authentication-service/internal/logger"
+	ppostgresClient "authentication-service/internal/storage/postgresClient"
 )
 
 const (

@@ -8,9 +8,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"medods/internal/api"
-	"medods/internal/auth"
-	"medods/internal/storage/postgresClient"
+	"authentication-service/internal/api"
+	"authentication-service/internal/auth"
+	"authentication-service/internal/storage/postgresClient"
 )
 
 const bearerPrefix = "Bearer "

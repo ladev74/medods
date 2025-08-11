@@ -11,9 +11,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
-	"medods/internal/api"
-	"medods/internal/auth"
-	"medods/internal/storage/postgresClient"
+	"authentication-service/internal/api"
+	"authentication-service/internal/auth"
+	"authentication-service/internal/storage/postgresClient"
 )
 
 // RefreshHandler обновляет пару access и refresh токенов.

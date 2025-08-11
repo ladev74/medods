@@ -6,8 +6,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 
-	"medods/internal/api"
-	"medods/internal/auth"
+	"authentication-service/internal/api"
+	"authentication-service/internal/auth"
 )
 
 // GetGUIDHandler возвращает GUID пользователя, извлечённый из JWT токена.

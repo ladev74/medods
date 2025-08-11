@@ -1,4 +1,4 @@
-# MEDODS
+# Authentication-Service
 
 ---
 
@@ -25,7 +25,7 @@ http://localhost:8082/swagger/index.html
 ```text
 На странице swagger документации при нажатии на кнопку "Authorize",
 необходимо сначала ввести слово "Bearer" и только потом вводить свой access токен,
-в противном случае вы будете получать ошибки "Unauthorized".
+в противном случае вы будете получать ошибку "Unauthorized".
 ```
 
 ---

@@ -6,9 +6,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 
-	"medods/internal/api"
-	"medods/internal/auth"
-	"medods/internal/storage/postgresClient"
+	"authentication-service/internal/api"
+	"authentication-service/internal/auth"
+	"authentication-service/internal/storage/postgresClient"
 )
 
 // LogoutHandler выполняет выход пользователя, занося текущий токен в черный список.
